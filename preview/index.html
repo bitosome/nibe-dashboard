@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NIBE Dashboard / preview</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#eeeeda;color:#26352f;font-family:'Avenir Next',Avenir,sans-serif;--primary-text-color:#26352f;--secondary-text-color:#748078;--card-background-color:#fefefb;--ha-card-background:#fefefb;--divider-color:#243d3014;--ha-card-border-radius:22px;--primary-color:#367a5a}
+  body.dark{background:#191d21;color:#e2e9e5;--primary-text-color:#e2e9e5;--secondary-text-color:#97a59e;--card-background-color:#282f32;--ha-card-background:#282f32;--divider-color:#ffffff10;--primary-color:#9bcaaa}
+  header{padding:28px 32px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}header strong{font-size:13px;letter-spacing:.04em}header small{display:block;font-size:11px;opacity:.6;margin-top:5px}.tools{display:flex;gap:8px;flex-wrap:wrap}button,select{font:inherit;font-size:12px;color:inherit;background:transparent;border:1px solid #8885;border-radius:999px;padding:9px 12px;cursor:pointer}main{width:min(100% - 28px,480px);margin:16px auto 60px;transition:width .2s}body.wide main{width:min(100% - 28px,760px)}body.mobile main{width:320px;max-width:calc(100% - 16px)}aside{text-align:center;font-size:11px;opacity:.6;padding:0 20px 40px}#events{font:11px monospace;line-height:1.6;max-width:720px;margin:0 auto;padding:14px;overflow-wrap:anywhere}button:focus-visible,select:focus-visible{outline:3px solid #599977}
+</style></head>
+<body>
+<header><div><strong>NIBE DASHBOARD</strong><small>Space Hub family / synthetic preview / no live commands</small></div><div class="tools"><button id="theme">Dark / light</button><select id="width" aria-label="Preview width"><option value="">Card</option><option value="mobile">Mobile (320)</option><option value="wide">Wide (760)</option></select><select id="scenario" aria-label="Scenario"><option value="heating">Heating</option><option value="water">Hot water</option><option value="idle">Standby</option><option value="alarm">Alarm 181</option><option value="missing">Missing data</option><option value="offline">Disconnected</option><option value="failure">Service failure</option><option value="readonly">Read only</option></select><button id="editor">Editor</button></div></header>
+<main><nibe-dashboard></nibe-dashboard><div id="edit" hidden></div></main><aside>Mock readings only. History uses Home Assistant's native cards when installed.</aside><div id="events" aria-live="polite"></div>
+<script type="module">
+  import { mockStates, mockConfig } from '/preview/fixtures.mjs';
+  // The host's icon stub uses simple inline SVGs; production uses HA's ha-icon.
+  const paths={
+    'heat-pump-outline':'M4 3h16v18H4z M8 7h8 M8 11h8 M8 15h3 M15 15h1',
+    'cog-outline':'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z M15 12a3 3 0 1 0-6 0 3 3 0 0 0 6 0',
+    'water-thermometer':'M9 3S3 10 3 14a6 6 0 0 0 12 0c0-4-6-11-6-11 M19 4v10a3 3 0 1 0 3 3 M19 4h2v10',
+    'flash-outline':'M13 2 4 14h7l-1 8 10-13h-8z',
+    'chevron-right':'m9 5 7 7-7 7',
+    'home-outline':'m3 11 9-8 9 8 M5 10v11h5v-7h4v7h5V10',
+    'floor-plan':'M3 3h18v18H3z M3 12h7 M12 3v7 M12 14v7 M16 12h5',
+    'chart-timeline-variant':'M3 3v18h18 M6 16l4-6 4 3 7-9',
+    'tune-variant':'M3 6h18 M3 12h18 M3 18h18 M8 3v6 M16 9v6 M9 15v6',
+  };
+  customElements.define('ha-icon',class extends HTMLElement{connectedCallback(){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.style.width='100%';svg.style.height='100%';const p=document.createElementNS(svg.namespaceURI,'path');p.setAttribute('d',paths[this.getAttribute('icon')?.replace('mdi:','')]??paths['heat-pump-outline']);p.setAttribute('fill','none');p.setAttribute('stroke','currentColor');p.setAttribute('stroke-width','1.6');p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');svg.append(p);this.replaceChildren(svg)}});
+  await import('../dist/nibe-dashboard.js');
+  const card=document.querySelector('nibe-dashboard'), log=document.querySelector('#events');
+  let config=structuredClone(mockConfig), states=mockStates(), scenario='heating';
+  const service=async(domain,action,data)=>{log.textContent=JSON.stringify({domain,action,data});if(scenario==='failure')throw new Error('Synthetic service failure');await new Promise(r=>setTimeout(r,500));const old=states[data.entity_id];states={...states,[data.entity_id]:{...old,state:domain==='input_boolean'?action==='turn_on'?'on':'off':domain==='input_number'?String(data.value):old.state,attributes:domain==='climate'?{...old.attributes,temperature:data.temperature}:old.attributes}};refresh();};
+  function refresh(){card.hass={states,connected:scenario!=='offline',callService:service};if(editor)editor.hass=card.hass;}
+  let editor;
+  card.setConfig(config);refresh();
+  document.querySelector('#theme').onclick=()=>document.body.classList.toggle('dark');
+  document.querySelector('#width').onchange=e=>{document.body.classList.remove('wide','mobile');if(e.target.value)document.body.classList.add(e.target.value);};
+  document.querySelector('#scenario').onchange=e=>{scenario=e.target.value;states=mockStates();if(scenario==='water')states['sensor.prio_43086'].state='HOT WATER';if(scenario==='idle')states['sensor.prio_43086'].state='OFF';if(scenario==='alarm')states['sensor.alarm_45001'].state='181';if(scenario==='missing'){states['sensor.home_temperature_average'].state='unavailable';states['sensor.nibe_circuit_input_power_kw'].state='unknown';states['input_number.indoor_target_temperature'].state='unavailable';}card.setConfig({...config,read_only:scenario==='readonly'});refresh();};
+  document.querySelector('#editor').onclick=async()=>{const host=document.querySelector('#edit');if(!editor){editor=await customElements.get('nibe-dashboard').getConfigElement();editor.hass=card.hass;editor.setConfig(config);editor.addEventListener('config-changed',e=>{config=e.detail.config;card.setConfig(config)});host.append(editor)}host.hidden=!host.hidden;card.hidden=!host.hidden;};
+  card.addEventListener('hass-more-info',e=>{log.textContent=`Mock more-info: ${e.detail.entityId}`;});
+</script></body></html>

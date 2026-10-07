@@ -1,0 +1,24 @@
+# One view, not a whole dashboard. All entity names below are generic examples.
+title: Heat pump
+path: nibe-diagnostics
+icon: mdi:heat-pump-outline
+type: masonry
+cards:
+  - type: custom:nibe-dashboard
+    title: Heat pump
+    subtitle: NIBE / ground source
+    entities:
+      indoor: sensor.house_temperature
+      target: input_number.heating_comfort_target
+      autopilot: input_boolean.heating_autopilot
+      heater_cap: input_number.heating_heater_allowance
+      bias: input_number.heating_trim
+      circuit_power: sensor.heat_pump_electrical_power
+    rooms:
+      - entity: climate.living_room
+        name: Living room
+      - entity: climate.bedroom
+        name: Bedroom
+    watch_automations:
+      - automation.heat_controller
+      - automation.compressor_governor

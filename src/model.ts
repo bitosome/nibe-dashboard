@@ -1,4 +1,4 @@
-import type { CardConfig, Entity, Hass } from './types';
+import type { CardConfig, Entity, Hass, Room } from './types';
 
 export const roles = {
   indoor: ['Indoor temperature', 'sensor', 'sensor.home_temperature_average'],
@@ -43,10 +43,22 @@ export const roles = {
 export type Role = keyof typeof roles;
 export type ControlRole = 'target' | 'heater_cap' | 'bias' | 'autopilot';
 export const controlRoles = new Set<Role>(['target', 'heater_cap', 'bias', 'autopilot']);
+export const nativeControls = { target: 'comfort_target', heater_cap: 'heater_cap', bias: 'heat_bias', autopilot: 'enabled' } as const;
+const managedRoles = new Set<Role>([...controlRoles, 'indoor', 'circuit_power', 'allowance', 'ready_zones', 'warm_guard', 'mains_fresh', 'global_hold', 'condenser_hold']);
 const entityPattern = /^[a-z_]+\.[a-z0-9_]+$/;
+
+export function roleDomains(role: Role, native = false): string[] {
+  if (!native) return [roles[role][1]];
+  if (role === 'autopilot') return ['switch'];
+  if (controlRoles.has(role)) return ['number'];
+  if (role === 'warm_guard') return ['binary_sensor'];
+  if (role === 'global_hold' || role === 'condenser_hold') return ['sensor'];
+  return [roles[role][1]];
+}
 
 export function validateConfig(config: CardConfig): CardConfig {
   if (!config || config.type !== 'custom:nibe-dashboard') throw new Error('Use type: custom:nibe-dashboard');
+  if (config.controller_entity !== undefined && (typeof config.controller_entity !== 'string' || !/^sensor\.[a-z0-9_]+$/.test(config.controller_entity))) throw new Error('controller_entity must be the NIBE Autopilot status sensor');
   for (const key of ['title', 'subtitle'] as const) {
     if (config[key] !== undefined && typeof config[key] !== 'string') throw new Error(`${key} must be text`);
   }
@@ -55,8 +67,8 @@ export function validateConfig(config: CardConfig): CardConfig {
   for (const [key, id] of Object.entries(config.entities ?? {})) {
     if (!(key in roles)) throw new Error(`Unknown entity role: ${key}`);
     if (id === null) continue;
-    const domain = roles[key as Role][1];
-    if (typeof id !== 'string' || !entityPattern.test(id) || !id.startsWith(`${domain}.`)) throw new Error(`${key} must be a ${domain} entity or null`);
+    const domains = roleDomains(key as Role, !!config.controller_entity);
+    if (typeof id !== 'string' || !entityPattern.test(id) || !domains.some(domain => id.startsWith(`${domain}.`))) throw new Error(`${key} must be a ${domains.join('/')} entity or null`);
   }
   if (config.rooms !== undefined && !Array.isArray(config.rooms)) throw new Error('rooms must be a list');
   for (const room of config.rooms ?? []) {
@@ -66,10 +78,37 @@ export function validateConfig(config: CardConfig): CardConfig {
   if (new Set((config.rooms ?? []).map(r => r.entity)).size !== (config.rooms ?? []).length) throw new Error('Room entities must be unique');
   if (config.watch_automations !== undefined && (!Array.isArray(config.watch_automations) || config.watch_automations.some(id => typeof id !== 'string' || !/^automation\.[a-z0-9_]+$/.test(id)))) throw new Error('watch_automations must contain automation entities');
   if (config.history_hours !== undefined && (!Number.isInteger(config.history_hours) || config.history_hours < 1 || config.history_hours > 168)) throw new Error('history_hours must be an integer from 1 to 168');
-  return { ...config, entities: { ...config.entities }, rooms: (config.rooms ?? []).map(r => ({ ...r })), watch_automations: [...(config.watch_automations ?? [])] };
+  return { ...config, entities: { ...config.entities }, rooms: config.rooms?.map(r => ({ ...r })), watch_automations: [...(config.watch_automations ?? [])] };
 }
-export function entityId(config: CardConfig, role: Role): string | undefined {
-  return config.entities?.[role] === null ? undefined : config.entities?.[role] ?? roles[role][2];
+export function controller(config: CardConfig, hass?: Hass): Entity | undefined {
+  const entity = config.controller_entity ? hass?.states[config.controller_entity] : undefined;
+  return available(entity) && entity.attributes.nibe_autopilot === true ? entity : undefined;
+}
+export function entityId(config: CardConfig, role: Role, hass?: Hass): string | undefined {
+  const explicit = config.entities?.[role];
+  if (explicit !== undefined) return explicit ?? undefined;
+  if (config.controller_entity) {
+    const bindings = controller(config, hass)?.attributes.dashboard_entities as Record<string, unknown> | undefined;
+    const id = bindings?.[role];
+    if (typeof id === 'string' && entityPattern.test(id) && roleDomains(role, true).some(d => id.startsWith(`${d}.`))) return id;
+    if (managedRoles.has(role)) return undefined;
+  }
+  return roles[role][2];
+}
+export function controlDomain(config: CardConfig, role: ControlRole, hass?: Hass): string | undefined {
+  const id = entityId(config, role, hass);
+  if (!id) return undefined;
+  if (!config.controller_entity) return id.startsWith(`${roles[role][1]}.`) ? roles[role][1] : undefined;
+  const c = controller(config, hass);
+  const bindings = c?.attributes.dashboard_entities as Record<string, unknown> | undefined;
+  const e = hass?.states[id];
+  if (bindings?.[role] !== id || e?.attributes.nibe_autopilot_control !== nativeControls[role]) return undefined;
+  return id.split('.')[0];
+}
+export function configuredRooms(config: CardConfig, hass?: Hass): Room[] {
+  if (config.rooms !== undefined) return config.rooms;
+  const ids = controller(config, hass)?.attributes.room_entities;
+  return Array.isArray(ids) ? [...new Set(ids.filter(id => typeof id === 'string' && /^climate\.[a-z0-9_]+$/.test(id)))].map(entity => ({ entity })) : [];
 }
 export function available(entity?: Entity): entity is Entity {
   return !!entity && !['unknown', 'unavailable', ''].includes(entity.state.toLowerCase());

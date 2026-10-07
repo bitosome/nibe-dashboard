@@ -6,6 +6,19 @@ Built in the [Space Hub Card](https://github.com/bitosome/space-hub-card) design
 
 ![Daily view with synthetic readings](docs/preview-home.jpg)
 
+## Backend Integration (0.2.0+)
+
+For the native **NIBE Autopilot** integration, select its Status sensor in the visual editor or use:
+
+```yaml
+type: custom:nibe-dashboard
+controller_entity: sensor.nibe_autopilot_status
+```
+
+The card uses the controller's advertised comfort entities and configured rooms. Explicit entity mappings override readings; native control overrides are only writable when they also match the controller's role binding and entity marker. Setting `rooms: []` hides rooms; omitting `rooms` uses the selected controller's rooms. No controller is selected automatically. Selecting one in the editor resets old card mappings, not pump settings.
+
+Monitor, blocked and unavailable states are visible. Missing backend data never falls back to legacy helper controls. Use the integration's native Configure menu for advanced tuning. Installing this card does not install or activate the backend; migration and single-writer handover remain separate steps. Legacy YAML/helper mode remains supported when `controller_entity` is omitted.
+
 ## What you get
 
 - **Home:** indoor temperature, comfort target, hot-water temperature, whole-circuit electrical input and autopilot master.
@@ -36,7 +49,7 @@ The bundle is committed in `dist/` and attached to tagged releases, following th
 
 1. Download `nibe-dashboard.js` from a release, or use `dist/nibe-dashboard.js` from the repository.
 2. Put it in `/config/www/nibe-dashboard.js`.
-3. Add `/local/nibe-dashboard.js?v=0.1.0` as a dashboard resource of type **JavaScript module**.
+3. Add `/local/nibe-dashboard.js?v=0.2.0` as a dashboard resource of type **JavaScript module**.
 4. Reload the frontend and add the card. After an upgrade, update the cache-busting version if needed.
 
 Installation does not create helpers or automations, enable NIBE entities, or replace any existing dashboard.
@@ -72,7 +85,7 @@ watch_automations:
 history_hours: 24
 ```
 
-These are **generic examples**, not a production configuration. Configure only the relevant thermostats, helpers and automations. Rooms are never discovered automatically, and the master switch alone does not prove the controller automations are running. Select those automations in the editor to enable health warnings.
+These are **generic examples**, not a production configuration. Configure only the relevant thermostats, helpers and automations. In legacy mode, rooms are never discovered automatically, and the master switch alone does not prove the controller automations are running. Select those automations in the editor to enable health warnings.
 
 For a pump without the companion autopilot, remove its helper mappings and use the card for monitoring:
 
@@ -113,17 +126,17 @@ See [entity roles and defaults](examples/entity-roles.md) for the complete mappi
 
 | Control | Allowed domain | Action |
 | --- | --- | --- |
-| House target | `input_number` | `set_value`, using reported min/max/step |
+| House target | `input_number` or verified integration `number` | `set_value`, using reported min/max/step |
 | Heater user allowance | `input_number` | `set_value`, using reported min/max/step |
 | Manual heating trim | `input_number` | `set_value`, using reported min/max/step |
-| Autopilot master | `input_boolean` | Explicit `turn_on` / `turn_off` |
+| Autopilot master | `input_boolean` or verified integration `switch` | Explicit `turn_on` / `turn_off` |
 | Room target | `climate` | `set_temperature`, no operating-mode changes |
 
 Only an explicit user gesture sends a service call. No commands run on card load, a timer, a state update or a history request. Pending requests lock the controls until the service succeeds **and** the entity reports the requested value. After 15 seconds without confirmation, the card reports uncertainty and does not retry. A confirmed HA setting does not prove physical pump operation.
 
 Room adjustments require an available, non-off thermostat exposing `temperature`, `min_temp`, `max_temp`, `target_temp_step` and the target-temperature supported feature. Missing constraints disable adjustment rather than guessing. The house target does not rewrite individual room targets.
 
-The card does **not** install the backend autopilot. Its controller automations must enforce electrical allowances, fault holds and flow-related constraints independently of the dashboard. This card never writes raw NIBE `number`, `select` or `switch` entities. Their diagnostic rows do not open editable more-info dialogs. It never disables the compressor governor, changes operating mode, resets alarms, forces a boost or edits hot-water safety settings.
+The card does **not** install the backend autopilot. Its backend integration or legacy controller automations must enforce electrical allowances, fault holds and flow-related constraints independently of the dashboard. This card never writes raw NIBE `number`, `select` or `switch` entities. Their diagnostic rows do not open editable more-info dialogs. It never disables the compressor governor, changes operating mode, resets alarms, forces a boost or edits hot-water safety settings.
 
 Read-only is a presentation preference, not authorization or a security boundary. Home Assistant permissions remain authoritative.
 

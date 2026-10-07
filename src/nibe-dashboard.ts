@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { designTokens } from './shared/design-tokens';
 import { buildGlow } from './shared/glow';
 import { cardStyles } from './styles';
-import { available, connected, controlRoles, entityId, formatEntity, nextNumber, numeric, priority, roles, validateConfig, type ControlRole, type Role } from './model';
+import { available, connected, controlRoles, controller, controlDomain, configuredRooms, entityId, formatEntity, nextNumber, numeric, priority, roles, validateConfig, type ControlRole, type Role } from './model';
 import type { CardConfig, Entity, Hass, HistoryCard, Room } from './types';
 
 type Page = 'home' | 'rooms' | 'history' | 'details' | 'water' | 'settings';
@@ -49,7 +49,8 @@ export class NibeDashboard extends LitElement {
     }
     if (this.page === 'history' && !this.histories.length && !this.historyLoading && !this.historyError) void this.loadHistory();
   }
-  private roleId(role: Role) { return this.config ? entityId(this.config, role) : undefined; }
+  private roleId(role: Role) { return this.config ? entityId(this.config, role, this.hass) : undefined; }
+  private get rooms() { return this.config ? configuredRooms(this.config, this.hass) : []; }
   private entity(role: Role): Entity | undefined { const id = this.roleId(role); return id ? this.hass?.states[id] : undefined; }
   private value(role: Role, digits = 1) { return this.roleId(role) ? formatEntity(this.entity(role), digits) : 'Not configured'; }
   private cancelPending() { if (this.pending?.timer) clearTimeout(this.pending.timer); this.pending = undefined; }
@@ -96,17 +97,19 @@ export class NibeDashboard extends LitElement {
     if (!controlRoles.has(role)) return;
     const id = this.roleId(role);
     const next = nextNumber(this.entity(role), direction);
-    if (id?.startsWith('input_number.') && next !== undefined) void this.command(id, 'input_number', 'set_value', { value: next }, next);
+    const domain = this.config ? controlDomain(this.config, role, this.hass) : undefined;
+    if (id && domain && next !== undefined) void this.command(id, domain, 'set_value', { value: next }, next);
   }
   private toggleAutopilot() {
     const id = this.roleId('autopilot');
     const state = this.entity('autopilot')?.state;
-    if (!id?.startsWith('input_boolean.') || !['on', 'off'].includes(state ?? '')) return;
+    const domain = this.config ? controlDomain(this.config, 'autopilot', this.hass) : undefined;
+    if (!id || !domain || !['on', 'off'].includes(state ?? '')) return;
     const next = state === 'on' ? 'off' : 'on';
-    void this.command(id, 'input_boolean', `turn_${next}`, {}, next);
+    void this.command(id, domain, `turn_${next}`, {}, next);
   }
   private adjustRoom(room: Room, direction: number) {
-    if (!this.config?.rooms?.some(r => r.entity === room.entity)) return;
+    if (!this.rooms.some(r => r.entity === room.entity)) return;
     const entity = this.hass?.states[room.entity];
     if (entity?.state === 'off') return;
     const next = nextNumber(entity, direction, true);
@@ -120,7 +123,7 @@ export class NibeDashboard extends LitElement {
   private show(page: Page) { this.page = page; }
   private stepper(role: Exclude<ControlRole, 'autopilot'>) {
     const entity = this.entity(role);
-    const writable = this.canWrite(this.roleId(role));
+    const writable = this.canWrite(this.roleId(role)) && !!this.config && !!controlDomain(this.config, role, this.hass);
     return html`<div class="stepper" aria-label=${roles[role][0]}>
       <button data-adjust=${`${role}-down`} aria-label=${`Decrease ${roles[role][0]}`} ?disabled=${!writable || nextNumber(entity, -1) === undefined} @click=${() => this.adjust(role, -1)}>&minus;</button>
       <output>${available(entity) && numeric(entity.state) !== undefined ? entity.state : '--'}</output>
@@ -130,8 +133,11 @@ export class NibeDashboard extends LitElement {
   private notices() {
     const alarm = this.entity('alarm');
     const code = available(alarm) ? numeric(alarm.state) : undefined;
-    const broken = (this.config?.watch_automations ?? []).filter(id => this.hass?.states[id]?.state !== 'on');
-    return html`${!connected(this.hass) ? html`<div class="notice error" role="alert"><strong>Home Assistant disconnected</strong>Readings may be out of date. Controls are paused.</div>` : nothing}
+    const backend = this.config ? controller(this.config, this.hass) : undefined;
+    const backendReason = String(backend?.attributes.error || backend?.attributes.interlock || '').replaceAll('_', ' ');
+    const broken = (this.config?.controller_entity ? [] : this.config?.watch_automations ?? []).filter(id => this.hass?.states[id]?.state !== 'on');
+    return html`${this.config?.controller_entity && backend?.state !== 'active' ? html`<div class="notice" role="status"><strong>${!backend ? 'Controller unavailable' : backend.state === 'monitor' ? 'Monitor only' : 'Controller blocked'}</strong>${!backend ? 'Integration controls are unavailable; legacy helpers are not used as a fallback.' : backend.state === 'monitor' ? 'The integration is observing without controlling the pump. Complete the ownership review before enabling it.' : backendReason || 'Check the integration diagnostics before enabling control.'}</div>` : nothing}
+      ${!connected(this.hass) ? html`<div class="notice error" role="alert"><strong>Home Assistant disconnected</strong>Readings may be out of date. Controls are paused.</div>` : nothing}
       ${this.roleId('alarm') && code === undefined ? html`<div class="notice" role="status"><strong>Alarm status unavailable</strong>Check the pump display. Missing telemetry is not an all-clear.</div>` : nothing}
       ${code !== undefined && code !== 0 ? html`<div class="notice error" role="alert"><strong>${code === 181 ? 'Periodic hot-water boost failed' : `NIBE alarm ${code}`}</strong>${code === 181 ? 'Alarm 181. A successful hygiene cycle has not been confirmed. Check the pump and the cause of the failure.' : 'Check the pump display and investigate the cause. This card will not reset the alarm.'}</div>` : nothing}
       ${this.entity('periodic_enabled')?.state === 'off' ? html`<div class="notice" role="status"><strong>Periodic hot-water boost is disabled</strong>Review the hygiene schedule on the pump.</div>` : nothing}
@@ -152,7 +158,7 @@ export class NibeDashboard extends LitElement {
       <button class="surface metric" data-page="water" @click=${() => this.show('water')}><span class="metric-top"><ha-icon icon="mdi:water-thermometer"></ha-icon><ha-icon class="arrow" icon="mdi:chevron-right"></ha-icon></span><span><strong>${this.value('hot_water')}</strong><small>Hot water</small></span></button>
       <button class="surface metric" data-page="details" @click=${() => this.show('details')}><span class="metric-top"><ha-icon icon="mdi:flash-outline"></ha-icon><ha-icon class="arrow" icon="mdi:chevron-right"></ha-icon></span><span><strong>${this.value('circuit_power', 2)}</strong><small>Electrical input</small></span></button>
     </div>
-    ${this.roleId('autopilot') ? html`<div class="setting-row autopilot"><div class="setting-copy"><strong>Autopilot</strong><small>${master?.state === 'on' ? 'Room-aware heat control' : master?.state === 'off' ? 'Paused; NIBE still manages the heat pump' : 'Helper unavailable; check configuration'}</small></div><div class="switch-hit"><button class="switch" role="switch" data-action="autopilot" aria-label="Autopilot" aria-checked=${master?.state === 'on'} ?disabled=${!this.canWrite(this.roleId('autopilot')) || !['on', 'off'].includes(master?.state ?? '')} @click=${this.toggleAutopilot}><span></span></button></div></div>` : nothing}`;
+    ${this.roleId('autopilot') ? html`<div class="setting-row autopilot"><div class="setting-copy"><strong>Autopilot</strong><small>${master?.state === 'on' ? 'Room-aware heat control' : master?.state === 'off' ? 'Paused; NIBE still manages the heat pump' : 'Control unavailable; check configuration'}</small></div><div class="switch-hit"><button class="switch" role="switch" data-action="autopilot" aria-label="Autopilot" aria-checked=${master?.state === 'on'} ?disabled=${!this.canWrite(this.roleId('autopilot')) || !this.config || !controlDomain(this.config, 'autopilot', this.hass) || !['on', 'off'].includes(master?.state ?? '')} @click=${this.toggleAutopilot}><span></span></button></div></div>` : nothing}`;
   }
   private roomCard(room: Room) {
     const entity = this.hass?.states[room.entity];
@@ -165,7 +171,7 @@ export class NibeDashboard extends LitElement {
     return html`<section class="surface room ${heating ? 'heating' : ''}" data-room=${room.entity}><div class="room-top"><span class="room-title">${name}</span><span class="room-temp">${current === undefined ? '--' : `${current.toFixed(1)}\u00b0`}</span></div><div class="comfort-footer"><span class="room-state"><span class="dot"></span>${!valid ? 'Unavailable' : heating ? 'Heat requested' : entity.state === 'off' ? 'Off' : entity.attributes.hvac_action === 'idle' ? 'Satisfied' : String(entity.attributes.hvac_action ?? 'State unknown')}</span><div class="stepper"><button data-room-adjust="down" aria-label=${`Decrease ${name} target`} ?disabled=${!enabled || nextNumber(entity, -1, true) === undefined} @click=${() => this.adjustRoom(room, -1)}>&minus;</button><output aria-label=${`${name} target`}>${target === undefined ? '--' : target}</output><button data-room-adjust="up" aria-label=${`Increase ${name} target`} ?disabled=${!enabled || nextNumber(entity, 1, true) === undefined} @click=${() => this.adjustRoom(room, 1)}>+</button></div></div></section>`;
   }
   private roomsPage() {
-    return html`<div class="section-title"><h2>Room comfort</h2></div><p class="hint">Each room keeps its own target. A heat request indicates relay demand, not confirmed valve position or water flow.</p><div class="rooms">${this.config?.rooms?.map(room => this.roomCard(room))}</div>${!this.config?.rooms?.length ? html`<p class="hint">Choose your room thermostats in the card editor to show them here. No rooms are discovered or controlled automatically.</p>` : nothing}`;
+    return html`<div class="section-title"><h2>Room comfort</h2></div><p class="hint">Each room keeps its own target. A heat request indicates relay demand, not confirmed valve position or water flow.</p><div class="rooms">${this.rooms.map(room => this.roomCard(room))}</div>${!this.rooms.length ? html`<p class="hint">Choose your room thermostats in the card editor to show them here. An explicitly selected controller supplies its configured rooms; nothing is controlled without a user action.</p>` : nothing}`;
   }
   private row(role: Role) {
     if (!this.roleId(role)) return nothing;
@@ -198,7 +204,7 @@ export class NibeDashboard extends LitElement {
     return html`<div class="section-title"><h2>Comfort settings</h2></div><section class="surface group settings">
       ${this.roleId('heater_cap') ? html`<div class="setting-row"><div class="setting-copy"><strong>Heater allowance</strong><small>User cap, in ${String(this.entity('heater_cap')?.attributes.unit_of_measurement ?? 'kW')}. Electrical limits still apply.</small></div>${this.stepper('heater_cap')}</div>` : nothing}
       ${this.roleId('bias') ? html`<div class="setting-row"><div class="setting-copy"><strong>Heating trim</strong><small>Manual bias for the room-aware controller.</small></div>${this.stepper('bias')}</div>` : nothing}
-      </section><p class="hint">The house target is an autopilot reference, not a command to set every room to the same temperature. Room targets are separate.</p><p class="hint">Compressor caps, curve offset and heater permission stay under automation ownership. Operating mode, periodic boost and safety settings remain on the pump.</p><p class="hint">Unavailable controls require an available helper with numeric minimum, maximum and step. In read-only mode all card commands are disabled.</p>`;
+      </section><p class="hint">The house target is an autopilot reference, not a command to set every room to the same temperature. Room targets are separate.</p><p class="hint">Compressor caps, curve offset and heater permission stay under controller ownership. Operating mode and periodic boost remain on the pump. Advanced controller tuning is available under Settings > Devices & services > NIBE Autopilot > Configure.</p><p class="hint">Unavailable controls require an available comfort entity with numeric minimum, maximum and step. In read-only mode all card commands are disabled.</p>`;
   }
   private async loadHistory() {
     if (!this.config || !this.hass || !this.isConnected) return;

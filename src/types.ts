@@ -17,6 +17,7 @@ export interface CardConfig {
   title?: string;
   subtitle?: string;
   read_only?: boolean;
+  controller_entity?: string;
   entities?: Record<string, string | null>;
   rooms?: Room[];
   watch_automations?: string[];

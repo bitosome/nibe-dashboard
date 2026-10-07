@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, afterEach, test, mock } from 'node:test';
 import { Window } from 'happy-dom';
-import { mockStates, mockConfig } from '../preview/fixtures.mjs';
+import { mockStates, mockConfig, integrationStates, integrationConfig } from '../preview/fixtures.mjs';
 
 const browser = new Window({ url: 'http://card.test/' });
 for (const key of ['window', 'document', 'HTMLElement', 'Element', 'ShadowRoot', 'Document', 'CSSStyleSheet', 'customElements', 'Event', 'CustomEvent', 'MutationObserver', 'Node', 'HTMLInputElement', 'HTMLSelectElement']) Object.defineProperty(globalThis, key, { configurable: true, value: key === 'window' ? browser : browser[key] });
@@ -32,6 +32,71 @@ test('registers HACS picker metadata and supports standard HA layout APIs', asyn
   assert.equal(card.getGridOptions().rows, 'auto');
   assert.equal(card.getCardSize(), 8);
   assert.equal(customElements.get('nibe-dashboard').getStubConfig().type, 'custom:nibe-dashboard');
+});
+
+test('integration mappings use native comfort controls, not legacy helpers', async () => {
+  const { card, calls } = await fixture({ config: { ...integrationConfig, rooms: undefined }, states: integrationStates() });
+  assert.match(text(card), /Monitor only/);
+  query(card, '[data-adjust="target-up"]').click(); await settle(card);
+  assert.deepEqual(calls, [{ domain: 'number', action: 'set_value', data: { entity_id: 'number.comfort', value: 23 } }]);
+  await change(card, { 'number.comfort': state(23, { min: 18, max: 30, step: .5, nibe_autopilot_control: 'comfort_target' }) });
+  query(card, '[data-action="autopilot"]').click(); await settle(card);
+  assert.equal(calls[1].domain, 'switch');
+  assert.equal(calls[1].data.entity_id, 'switch.controller');
+  assert.equal(calls[1].action, 'turn_on');
+});
+test('selected integration supplies only its configured rooms unless explicitly overridden', async () => {
+  const { card, calls } = await fixture({ config: { ...integrationConfig, rooms: undefined }, states: integrationStates('active') });
+  await nav(card, 'rooms');
+  assert.equal(root(card).querySelectorAll('[data-room]').length, 2);
+  query(card, '[data-room="climate.bedroom"] [data-room-adjust="up"]').click(); await settle(card);
+  assert.equal(calls[0].data.entity_id, 'climate.bedroom');
+  card.setConfig({ ...integrationConfig, rooms: [] }); await settle(card);
+  assert.equal(root(card).querySelectorAll('[data-room]').length, 0);
+});
+test('unavailable or unmarked backend never falls back to legacy comfort helpers', async () => {
+  for (const backend of [state('unavailable'), state('active')]) {
+    const { card, calls } = await fixture({ config: integrationConfig, states: { ...integrationStates(), 'sensor.controller_status': backend } });
+    assert.match(text(card), /Controller unavailable/);
+    assert.equal(query(card, '[data-adjust="target-up"]'), null);
+    assert.equal(query(card, '[data-action="autopilot"]'), null);
+    assert.equal(calls.length, 0);
+    card.remove();
+  }
+});
+test('native controls require both the controller binding and correct role marker', async () => {
+  const { card, calls } = await fixture({ config: { ...integrationConfig, entities: { target: 'number.heat_offset_s1_47011' } }, states: { ...integrationStates(), 'number.heat_offset_s1_47011': state(0, { min: -10, max: 10, step: 1 }) } });
+  assert.equal(query(card, '[data-adjust="target-up"]').disabled, true);
+  query(card, '[data-adjust="target-up"]').click();
+  card.adjust('target', 1);
+  card.setConfig(integrationConfig);
+  await change(card, { 'number.comfort': state(22.5, { min: 18, max: 30, step: .5, nibe_autopilot_control: 'heater_cap' }) });
+  assert.equal(query(card, '[data-adjust="target-up"]').disabled, true);
+  assert.equal(calls.length, 0);
+});
+test('blocked controller is visible and does not misreport stopped YAML as a failure', async () => {
+  const states = integrationStates('blocked');
+  states['automation.heat_controller'].state = 'off';
+  const { card, calls } = await fixture({ config: integrationConfig, states });
+  assert.match(text(card), /Controller blocked/);
+  assert.match(text(card), /legacy writer active or unavailable/);
+  assert.doesNotMatch(text(card), /Controller needs attention/);
+  assert.equal(calls.length, 0);
+});
+test('native controls also honor read-only mode', async () => {
+  const { card, calls } = await fixture({ config: { ...integrationConfig, read_only: true }, states: integrationStates() });
+  assert.equal(query(card, '[data-adjust="target-up"]').disabled, true);
+  card.adjust('target', 1); card.toggleAutopilot();
+  assert.equal(calls.length, 0);
+});
+test('native editor offers only controller-bound comfort numbers, not raw registers', async () => {
+  const editor = await customElements.get('nibe-dashboard').getConfigElement();
+  editor.hass = { states: integrationStates() };
+  editor.setConfig(integrationConfig);
+  document.body.append(editor); await settle(editor);
+  const choices = [...query(editor, '[data-role="target"]').options].map(o => o.value);
+  assert.deepEqual(choices, ['', 'number.comfort']);
+  assert.equal(query(editor, '[data-controller]').value, 'sensor.controller_status');
 });
 test('daily view is compact and only opening pages never writes', async () => {
   const { card, calls } = await fixture();

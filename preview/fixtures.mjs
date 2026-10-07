@@ -56,3 +56,19 @@ export const mockConfig = {
   rooms: ['living_room', 'bedroom', 'study', 'bathroom'].map(id => ({ entity: `climate.${id}` })),
   watch_automations: ['automation.heat_controller', 'automation.compressor_governor'],
 };
+
+export const integrationConfig = { type: 'custom:nibe-dashboard', controller_entity: 'sensor.controller_status' };
+export function integrationStates(status = 'monitor') {
+  const states = mockStates();
+  const controls = { target: ['comfort_target', 'number.comfort'], heater_cap: ['heater_cap', 'number.allowance'], bias: ['heat_bias', 'number.trim'], autopilot: ['enabled', 'switch.controller'] };
+  const legacy = { target: 'input_number.indoor_target_temperature', heater_cap: 'input_number.nibe_max_add_heat_kw', bias: 'input_number.nibe_heat_bias', autopilot: 'input_boolean.nibe_autopilot_state' };
+  const bindings = {};
+  for (const [role, [key, id]] of Object.entries(controls)) {
+    states[id] = { ...states[legacy[role]], attributes: { ...states[legacy[role]].attributes, nibe_autopilot_control: key } };
+    bindings[role] = id;
+  }
+  states['switch.controller'].state = status === 'active' ? 'on' : 'off';
+  Object.assign(bindings, { indoor: 'sensor.home_temperature_average', circuit_power: 'sensor.nibe_circuit_input_power_kw', allowance: 'sensor.nibe_electrical_allowance_kw', ready_zones: 'sensor.nibe_ready_zone_count', mains_fresh: 'binary_sensor.nibe_mains_fresh' });
+  states['sensor.controller_status'] = entity(status, { nibe_autopilot: true, dashboard_entities: bindings, room_entities: ['climate.living_room', 'climate.bedroom'], interlock: status === 'blocked' ? 'legacy_writer_active_or_unavailable' : null });
+  return states;
+}

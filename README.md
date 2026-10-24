@@ -49,7 +49,7 @@ The bundle is committed in `dist/` and attached to tagged releases, following th
 
 1. Download `nibe-dashboard.js` from a release, or use `dist/nibe-dashboard.js` from the repository.
 2. Put it in `/config/www/nibe-dashboard.js`.
-3. Add `/local/nibe-dashboard.js?v=0.2.0` as a dashboard resource of type **JavaScript module**.
+3. Add `/local/nibe-dashboard.js?v=0.2.1` as a dashboard resource of type **JavaScript module**.
 4. Reload the frontend and add the card. After an upgrade, update the cache-busting version if needed.
 
 Installation does not create helpers or automations, enable NIBE entities, or replace any existing dashboard.
@@ -129,7 +129,7 @@ See [entity roles and defaults](examples/entity-roles.md) for the complete mappi
 | House target | `input_number` or verified integration `number` | `set_value`, using reported min/max/step |
 | Heater user allowance | `input_number` | `set_value`, using reported min/max/step |
 | Manual heating trim | `input_number` | `set_value`, using reported min/max/step |
-| Autopilot master | `input_boolean` or verified integration `switch` | Explicit `turn_on` / `turn_off` |
+| Autopilot master | `input_boolean` or verified integration `switch` | Status only; no card toggle |
 | Room target | `climate` | `set_temperature`, no operating-mode changes |
 
 Only an explicit user gesture sends a service call. No commands run on card load, a timer, a state update or a history request. Pending requests lock the controls until the service succeeds **and** the entity reports the requested value. After 15 seconds without confirmation, the card reports uncertainty and does not retry. A confirmed HA setting does not prove physical pump operation.

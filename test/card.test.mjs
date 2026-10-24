@@ -40,10 +40,8 @@ test('integration mappings use native comfort controls, not legacy helpers', asy
   query(card, '[data-adjust="target-up"]').click(); await settle(card);
   assert.deepEqual(calls, [{ domain: 'number', action: 'set_value', data: { entity_id: 'number.comfort', value: 23 } }]);
   await change(card, { 'number.comfort': state(23, { min: 18, max: 30, step: .5, nibe_autopilot_control: 'comfort_target' }) });
-  query(card, '[data-action="autopilot"]').click(); await settle(card);
-  assert.equal(calls[1].domain, 'switch');
-  assert.equal(calls[1].data.entity_id, 'switch.controller');
-  assert.equal(calls[1].action, 'turn_on');
+  assert.equal(query(card, '[data-action="autopilot"]'), null);
+  assert.equal(calls.length, 1);
 });
 test('selected integration supplies only its configured rooms unless explicitly overridden', async () => {
   const { card, calls } = await fixture({ config: { ...integrationConfig, rooms: undefined }, states: integrationStates('active') });
@@ -86,7 +84,8 @@ test('blocked controller is visible and does not misreport stopped YAML as a fai
 test('native controls also honor read-only mode', async () => {
   const { card, calls } = await fixture({ config: { ...integrationConfig, read_only: true }, states: integrationStates() });
   assert.equal(query(card, '[data-adjust="target-up"]').disabled, true);
-  card.adjust('target', 1); card.toggleAutopilot();
+  card.adjust('target', 1);
+  assert.equal(query(card, '[data-action="autopilot"]'), null);
   assert.equal(calls.length, 0);
 });
 test('native editor offers only controller-bound comfort numbers, not raw registers', async () => {
@@ -145,10 +144,10 @@ test('state arriving before service response does not prematurely confirm', asyn
   resolve(); await settle(card);
   assert.match(text(card), /Setting updated in Home Assistant/);
 });
-test('autopilot toggle is explicit and does not toggle an automation or pump', async () => {
+test('autopilot is status-only and the card cannot disable it', async () => {
   const { card, calls } = await fixture();
-  query(card, '[data-action="autopilot"]').click(); await settle(card);
-  assert.deepEqual(calls, [{ domain: 'input_boolean', action: 'turn_off', data: { entity_id: 'input_boolean.nibe_autopilot_state' } }]);
+  assert.equal(query(card, '[data-action="autopilot"]'), null);
+  assert.deepEqual(calls, []);
 });
 test('heater allowance and trim use separate input_number helpers', async () => {
   const { card, calls } = await fixture();
@@ -187,7 +186,7 @@ test('offline and read-only modes disable every command without hiding telemetry
   for (const options of [{ online: false }, { config: { read_only: true } }]) {
     const { card, calls } = await fixture(options);
     assert.equal(query(card, '[data-adjust="target-up"]').disabled, true);
-    assert.equal(query(card, '[data-action="autopilot"]').disabled, true);
+    assert.equal(query(card, '[data-action="autopilot"]'), null);
     await nav(card, 'rooms');
     assert.ok([...root(card).querySelectorAll('[data-room-adjust]')].every(b => b.disabled));
     await page(card, 'settings');
@@ -198,7 +197,7 @@ test('offline and read-only modes disable every command without hiding telemetry
 test('connection.connected=false is also treated as offline', async () => {
   const { card } = await fixture();
   card.hass = { ...card.hass, connection: { connected: false } }; await settle(card);
-  assert.equal(query(card, '[data-action="autopilot"]').disabled, true);
+  assert.equal(query(card, '[data-action="autopilot"]'), null);
   assert.match(text(card), /Home Assistant disconnected/);
 });
 test('alarm 181 remains prominent on every page and no reset is sent', async () => {

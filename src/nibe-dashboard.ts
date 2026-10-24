@@ -100,14 +100,6 @@ export class NibeDashboard extends LitElement {
     const domain = this.config ? controlDomain(this.config, role, this.hass) : undefined;
     if (id && domain && next !== undefined) void this.command(id, domain, 'set_value', { value: next }, next);
   }
-  private toggleAutopilot() {
-    const id = this.roleId('autopilot');
-    const state = this.entity('autopilot')?.state;
-    const domain = this.config ? controlDomain(this.config, 'autopilot', this.hass) : undefined;
-    if (!id || !domain || !['on', 'off'].includes(state ?? '')) return;
-    const next = state === 'on' ? 'off' : 'on';
-    void this.command(id, domain, `turn_${next}`, {}, next);
-  }
   private adjustRoom(room: Room, direction: number) {
     if (!this.rooms.some(r => r.entity === room.entity)) return;
     const entity = this.hass?.states[room.entity];
@@ -141,6 +133,7 @@ export class NibeDashboard extends LitElement {
       ${this.roleId('alarm') && code === undefined ? html`<div class="notice" role="status"><strong>Alarm status unavailable</strong>Check the pump display. Missing telemetry is not an all-clear.</div>` : nothing}
       ${code !== undefined && code !== 0 ? html`<div class="notice error" role="alert"><strong>${code === 181 ? 'Periodic hot-water boost failed' : `NIBE alarm ${code}`}</strong>${code === 181 ? 'Alarm 181. A successful hygiene cycle has not been confirmed. Check the pump and the cause of the failure.' : 'Check the pump display and investigate the cause. This card will not reset the alarm.'}</div>` : nothing}
       ${this.entity('periodic_enabled')?.state === 'off' ? html`<div class="notice" role="status"><strong>Periodic hot-water boost is disabled</strong>Review the hygiene schedule on the pump.</div>` : nothing}
+      ${!this.config?.controller_entity && this.roleId('autopilot') && this.entity('autopilot')?.state !== 'on' ? html`<div class="notice" role="status"><strong>Autopilot is not active</strong>Check the controller in Home Assistant settings.</div>` : nothing}
       ${broken.length ? html`<div class="notice" role="status"><strong>Controller needs attention</strong>${broken.map(id => String(this.hass?.states[id]?.attributes.friendly_name ?? id)).join(', ')}: off or unavailable. Autopilot master alone does not prove the controllers are running.</div>` : nothing}`;
   }
   private home() {
@@ -148,7 +141,6 @@ export class NibeDashboard extends LitElement {
     const indoor = this.entity('indoor');
     const n = available(indoor) ? numeric(indoor.state) : undefined;
     const glow = buildGlow({ weak: 'color-mix(in srgb,var(--status-heat-color) 7%,transparent)', strong: 'color-mix(in srgb,var(--status-heat-color) 10%,transparent)' }, 'static', status.tone === 'heat');
-    const master = this.entity('autopilot');
     return html`<div class="tile-wrap"><div class="glow-under" style=${glow.style}>${glow.overlay}</div><section class="surface comfort">
       <div class="comfort-top"><span class="eyebrow">Inside</span>${this.config?.read_only ? html`<span class="chip">Read only</span>` : nothing}</div>
       <div class="reading"><strong class=${n === undefined ? 'missing' : ''}>${n === undefined ? 'Unavailable' : n.toFixed(1)}</strong>${n !== undefined ? html`<span>${String(indoor?.attributes.unit_of_measurement ?? '')}</span>` : nothing}</div>
@@ -158,7 +150,7 @@ export class NibeDashboard extends LitElement {
       <button class="surface metric" data-page="water" @click=${() => this.show('water')}><span class="metric-top"><ha-icon icon="mdi:water-thermometer"></ha-icon><ha-icon class="arrow" icon="mdi:chevron-right"></ha-icon></span><span><strong>${this.value('hot_water')}</strong><small>Hot water</small></span></button>
       <button class="surface metric" data-page="details" @click=${() => this.show('details')}><span class="metric-top"><ha-icon icon="mdi:flash-outline"></ha-icon><ha-icon class="arrow" icon="mdi:chevron-right"></ha-icon></span><span><strong>${this.value('circuit_power', 2)}</strong><small>Electrical input</small></span></button>
     </div>
-    ${this.roleId('autopilot') ? html`<div class="setting-row autopilot"><div class="setting-copy"><strong>Autopilot</strong><small>${master?.state === 'on' ? 'Room-aware heat control' : master?.state === 'off' ? 'Paused; NIBE still manages the heat pump' : 'Control unavailable; check configuration'}</small></div><div class="switch-hit"><button class="switch" role="switch" data-action="autopilot" aria-label="Autopilot" aria-checked=${master?.state === 'on'} ?disabled=${!this.canWrite(this.roleId('autopilot')) || !this.config || !controlDomain(this.config, 'autopilot', this.hass) || !['on', 'off'].includes(master?.state ?? '')} @click=${this.toggleAutopilot}><span></span></button></div></div>` : nothing}`;
+    `;
   }
   private roomCard(room: Room) {
     const entity = this.hass?.states[room.entity];

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Remove the home-screen Autopilot toggle. Controller-off/unavailable diagnostics remain visible; the card does not change the controller enable state.
+
 ## 0.2.0
 
 - Native NIBE Autopilot status binding, comfort controls and configured room discovery.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Match the compact ventilation-card reading tiles: aligned labels, values and small units, consistent heights and tighter spacing. Preserve unavailable readings and detail navigation.
+
 ## 0.2.1
 
 - Remove the home-screen Autopilot toggle. Controller-off/unavailable diagnostics remain visible; the card does not change the controller enable state.

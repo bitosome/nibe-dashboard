@@ -41,12 +41,15 @@ export const cardStyles = css`
   .stepper { display:flex; align-items:center; border-radius:999px; background:color-mix(in srgb,var(--primary-text-color) 6%,transparent); padding:3px; gap:3px; flex-shrink:0; }
   .stepper button { display:grid; place-items:center; width:40px; height:40px; border-radius:50%; background:var(--nibe-surface); font-size:21px; }
   .stepper output { min-width:49px; text-align:center; font-size:14px; font-weight:650; font-variant-numeric:tabular-nums; }
-  .metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--large-gap); }
-  .metric { width:100%; text-align:left; padding:17px 18px; display:grid; gap:12px; min-height:124px; }
-  .metric-top { display:flex; align-items:center; justify-content:space-between; color:var(--nibe-muted); }
-  .metric-top .arrow { width:16px; height:16px; --mdc-icon-size:16px; opacity:.55; }
-  .metric strong { font-size:24px; font-weight:550; letter-spacing:-.03em; line-height:1.3; overflow-wrap:anywhere; }
-  .metric small { display:block; color:var(--nibe-muted); margin-top:3px; font-size:12px; }
+  .metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; align-items:stretch; }
+  .metric { width:100%; min-width:0; text-align:left; padding:12px; display:grid; grid-template-rows:1fr auto; gap:6px; min-height:100px; }
+  .metric-top { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:18px auto; gap:6px 4px; align-items:center; color:var(--nibe-muted); }
+  .metric-top ha-icon { width:18px; height:18px; --mdc-icon-size:18px; grid-column:1; grid-row:1; }
+  .metric-top .arrow { width:16px; height:16px; --mdc-icon-size:16px; opacity:.55; grid-column:2; }
+  .metric-label { grid-column:1/-1; grid-row:2; min-width:0; font-size:11px; line-height:1.3; overflow-wrap:anywhere; }
+  .metric strong { display:flex; align-items:baseline; flex-wrap:wrap; gap:2px 3px; font-size:clamp(22px,6.4cqw,28px); font-weight:550; letter-spacing:-.03em; line-height:1.1; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+  .metric strong.missing { font-size:13px; line-height:1.4; letter-spacing:0; min-height:28px; align-items:center; }
+  .metric strong small { font-size:10px; font-weight:500; letter-spacing:0; color:var(--nibe-muted); }
   .autopilot { padding:14px 8px; }
   .switch { padding:3px; width:48px; height:28px; border-radius:999px; background:color-mix(in srgb,var(--nibe-muted) 30%,transparent); flex:0 0 48px; }
   .switch span { display:block; width:22px; height:22px; border-radius:50%; background:var(--nibe-surface); box-shadow:0 1px 3px #0002; transition:transform .15s; }
@@ -87,6 +90,6 @@ export const cardStyles = css`
   summary { cursor:pointer; padding:14px 0; min-height:44px; font-size:13px; font-weight:600; }
   .history { display:grid; gap:var(--large-gap); }
   @container (min-width:600px) { .rooms { grid-template-columns:repeat(2,minmax(0,1fr)); } .comfort { padding:28px; } }
-  @container (max-width:340px) { .comfort { padding:18px 14px; } .metric { padding:14px; } .setting-row { flex-wrap:wrap; } .comfort-footer { gap:6px; } .stepper button { width:38px; } .stepper output { min-width:44px; } }
+  @container (max-width:340px) { .comfort { padding:18px 14px; } .metric { padding:10px; } .setting-row { flex-wrap:wrap; } .comfort-footer { gap:6px; } .stepper button { width:38px; } .stepper output { min-width:44px; } }
   @media (prefers-reduced-motion:reduce) { * { animation:none!important; transition:none!important; } }
 `;

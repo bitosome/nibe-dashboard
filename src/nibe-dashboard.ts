@@ -136,6 +136,15 @@ export class NibeDashboard extends LitElement {
       ${!this.config?.controller_entity && this.roleId('autopilot') && this.entity('autopilot')?.state !== 'on' ? html`<div class="notice" role="status"><strong>Autopilot is not active</strong>Check the controller in Home Assistant settings.</div>` : nothing}
       ${broken.length ? html`<div class="notice" role="status"><strong>Controller needs attention</strong>${broken.map(id => String(this.hass?.states[id]?.attributes.friendly_name ?? id)).join(', ')}: off or unavailable. Autopilot master alone does not prove the controllers are running.</div>` : nothing}`;
   }
+  private metric(role: Role, label: string, icon: string, page: Page, digits = 1) {
+    const entity = this.entity(role);
+    const number = available(entity) ? numeric(entity.state) : undefined;
+    const unit = String(entity?.attributes.unit_of_measurement ?? '');
+    return html`<button class="surface metric" data-page=${page} aria-label=${`${label}: ${this.value(role, digits)}. Open details`} @click=${() => this.show(page)}>
+      <span class="metric-top"><ha-icon icon=${icon}></ha-icon><ha-icon class="arrow" icon="mdi:chevron-right"></ha-icon><span class="metric-label">${label}</span></span>
+      <strong class=${number === undefined ? 'missing' : ''}>${number === undefined ? this.value(role, digits) : number.toFixed(digits).replace(/\.0$/, '')}${number !== undefined && unit ? html`<small> ${unit}</small>` : nothing}</strong>
+    </button>`;
+  }
   private home() {
     const status = priority(this.entity('priority'));
     const indoor = this.entity('indoor');
@@ -147,8 +156,8 @@ export class NibeDashboard extends LitElement {
       ${this.roleId('target') ? html`<div class="comfort-footer"><div class="setting-copy"><strong>Comfort target</strong><small>Autopilot reference</small></div>${this.stepper('target')}</div>` : nothing}
     </section></div>
     <div class="metrics">
-      <button class="surface metric" data-page="water" @click=${() => this.show('water')}><span class="metric-top"><ha-icon icon="mdi:water-thermometer"></ha-icon><ha-icon class="arrow" icon="mdi:chevron-right"></ha-icon></span><span><strong>${this.value('hot_water')}</strong><small>Hot water</small></span></button>
-      <button class="surface metric" data-page="details" @click=${() => this.show('details')}><span class="metric-top"><ha-icon icon="mdi:flash-outline"></ha-icon><ha-icon class="arrow" icon="mdi:chevron-right"></ha-icon></span><span><strong>${this.value('circuit_power', 2)}</strong><small>Electrical input</small></span></button>
+      ${this.metric('hot_water', 'Hot water', 'mdi:water-thermometer', 'water')}
+      ${this.metric('circuit_power', 'Electrical input', 'mdi:flash-outline', 'details', 2)}
     </div>
     `;
   }

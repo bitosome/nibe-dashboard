@@ -1,6 +1,6 @@
 {
   "name": "nibe-dashboard",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "A calm, automation-aware NIBE heat-pump card for Home Assistant.",
   "type": "module",
   "license": "MIT",
@@ -12,8 +12,10 @@
     "build": "rollup -c",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.mjs",
-    "check": "npm run typecheck && npm run build && npm test",
-    "preview": "node preview/server.mjs"
+    "check": "npm run format:check && npm run typecheck && npm run build && npm test",
+    "preview": "node preview/server.mjs",
+    "format": "prettier --write src/nibe-dashboard.ts src/styles.ts",
+    "format:check": "prettier --check src/nibe-dashboard.ts src/styles.ts"
   },
   "dependencies": {
     "lit": "^3.3.1"
@@ -24,6 +26,7 @@
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.1.4",
     "happy-dom": "^20.10.6",
+    "prettier": "3.6.2",
     "rollup": "^4.44.1",
     "tslib": "^2.8.1",
     "typescript": "^5.8.3"

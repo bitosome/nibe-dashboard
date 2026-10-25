@@ -8,7 +8,7 @@ for (const key of ['window', 'document', 'HTMLElement', 'Element', 'ShadowRoot',
 await import('../dist/nibe-dashboard.js');
 const root = card => card.shadowRoot;
 const query = (card, selector) => root(card).querySelector(selector);
-const text = card => root(card).textContent;
+const text = card => root(card).textContent.replace(/\s+/g, ' ');
 const state = (value, attributes = {}) => ({ state: String(value), attributes });
 async function settle(card) { await card.updateComplete; await Promise.resolve(); await card.updateComplete; }
 async function fixture({ config = {}, states = {}, service, online = true } = {}) {
@@ -329,4 +329,15 @@ test('editor keeps read-only mode and duplicate room selections consistent', asy
   assert.equal(room.value, 'climate.living_room');
   room.value = 'climate.bedroom'; room.dispatchEvent(new Event('change')); await settle(editor);
   assert.equal(room.value, 'climate.living_room');
+});
+
+
+test('shared navigation remains descriptive and never sends equipment commands', async () => {
+  const {card,calls}=await fixture();
+  const overview=query(card,'[data-nav="home"]');
+  assert.equal(overview.textContent.trim(),'Overview');
+  assert.equal(query(card,'[data-nav="history"] ha-icon').getAttribute('icon'),'mdi:history');
+  assert.equal(query(card,'[data-nav="details"] ha-icon').getAttribute('icon'),'mdi:information-outline');
+  for(const page of ['rooms','history','details','home']) await nav(card,page);
+  assert.equal(calls.length,0);
 });

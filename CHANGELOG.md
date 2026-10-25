@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+- Share the versioned Space Hub header, metric, surface and navigation primitives with the card family; keep theme overrides and under-tile glow layering.
+- Align history/details icons and Overview naming, use 56px section navigation and 44px comfort/room controls, and retain readable mobile configuration fields.
+- Format maintained presentation sources and enforce formatting in checks. Keep command authorization, physical-state semantics, history and unavailable handling unchanged.
+
 ## 0.2.2
 
 - Match the compact ventilation-card reading tiles: aligned labels, values and small units, consistent heights and tighter spacing. Preserve unavailable readings and detail navigation.

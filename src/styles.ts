@@ -4,13 +4,18 @@ import {
   headerStyles,
   metricStyles,
   navigationStyles,
-  telemetryStyles,
-} from "./shared/card-primitives";
+  dialogStyles,
+  glowStyles,
+  componentStyles,
+} from "@bitosome/ha-card-ui";
 export const cardStyles = [
   familyStyles,
   headerStyles,
   metricStyles,
   navigationStyles,
+  dialogStyles,
+  glowStyles,
+  componentStyles,
   css`
     :host {
       color: var(--primary-text-color, #26352f);
@@ -102,29 +107,13 @@ export const cardStyles = [
       gap: var(--large-gap);
       min-width: 0;
     }
-    .tile-wrap {
-      position: relative;
+    .modal-content {
+      display: grid;
+      gap: var(--large-gap);
       min-width: 0;
     }
-    .glow-under {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      border-radius: var(--tile-border-radius);
-    }
-    .glow-overlay {
-      position: absolute;
-      inset: -10px -14px -18px;
-      border-radius: inherit;
-      pointer-events: none;
-      opacity: 0.8;
-      mask-image: linear-gradient(
-        180deg,
-        transparent,
-        rgba(0, 0, 0, 0.25) 18px,
-        #000 44px
-      );
+    .family-dialog-body {
+      container-type: inline-size;
     }
     .comfort {
       padding: 22px;

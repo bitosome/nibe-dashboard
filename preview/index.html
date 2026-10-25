@@ -13,6 +13,8 @@
   import { mockStates, mockConfig, integrationStates, integrationConfig } from '/preview/fixtures.mjs';
   // The host's icon stub uses simple inline SVGs; production uses HA's ha-icon.
   const paths={
+    'close':'m6 6 12 12 M6 18 18 6',
+    'arrow-left':'M20 12H4 M10 6l-6 6 6 6',
     'heat-pump-outline':'M4 3h16v18H4z M8 7h8 M8 11h8 M8 15h3 M15 15h1',
     'cog-outline':'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z M15 12a3 3 0 1 0-6 0 3 3 0 0 0 6 0',
     'water-thermometer':'M9 3S3 10 3 14a6 6 0 0 0 12 0c0-4-6-11-6-11 M19 4v10a3 3 0 1 0 3 3 M19 4h2v10',
@@ -25,7 +27,7 @@
     'information-outline':'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 11v6 M12 7v1',
     'tune-variant':'M3 6h18 M3 12h18 M3 18h18 M8 3v6 M16 9v6 M9 15v6',
   };
-  customElements.define('ha-icon',class extends HTMLElement{connectedCallback(){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.style.width='100%';svg.style.height='100%';const p=document.createElementNS(svg.namespaceURI,'path');p.setAttribute('d',paths[this.getAttribute('icon')?.replace('mdi:','')]??paths['heat-pump-outline']);p.setAttribute('fill','none');p.setAttribute('stroke','currentColor');p.setAttribute('stroke-width','1.6');p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');svg.append(p);this.replaceChildren(svg)}});
+  customElements.define('ha-icon',class extends HTMLElement{set icon(value){this._icon=value;if(this.isConnected)this.render()}get icon(){return this._icon}connectedCallback(){this.render()}render(){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.style.width='100%';svg.style.height='100%';const p=document.createElementNS(svg.namespaceURI,'path');p.setAttribute('d',paths[(this.icon??this.getAttribute('icon'))?.replace('mdi:','')]??paths['heat-pump-outline']);p.setAttribute('fill','none');p.setAttribute('stroke','currentColor');p.setAttribute('stroke-width','1.6');p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');svg.append(p);this.replaceChildren(svg)}});
   await import('../dist/nibe-dashboard.js');
   const card=document.querySelector('nibe-dashboard'), log=document.querySelector('#events');
   let config=structuredClone(mockConfig), states=mockStates(), scenario='heating';

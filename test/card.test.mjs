@@ -317,7 +317,7 @@ test('visual editor preserves unavailable mappings and emits config changes', as
 });
 test('unsafe text is rendered as text, not markup', async () => {
   const { card } = await fixture({ config: { title: '<img src=x onerror=alert(1)>' } });
-  assert.equal(query(card, 'h1').textContent, '<img src=x onerror=alert(1)>');
+  assert.equal(query(card, 'h1').textContent.trim(), '<img src=x onerror=alert(1)>');
   assert.equal(query(card, 'img'), null);
 });
 test('editor keeps read-only mode and duplicate room selections consistent', async () => {
@@ -340,4 +340,55 @@ test('shared navigation remains descriptive and never sends equipment commands',
   assert.equal(query(card,'[data-nav="details"] ha-icon').getAttribute('icon'),'mdi:information-outline');
   for(const page of ['rooms','history','details','home']) await nav(card,page);
   assert.equal(calls.length,0);
+});
+
+test('shared modal keeps the overview intact and X/Escape return to its opener', async () => {
+  const { card, calls } = await fixture();
+  const hero = query(card, '.comfort');
+  const opener = query(card, '[data-page="settings"]');
+  opener.focus(); opener.click(); await settle(card);
+  const dialog = query(card, 'dialog');
+  assert.equal(dialog.open, true);
+  assert.equal(dialog.getAttribute('aria-label'), 'Settings');
+  assert.equal(query(card, '.comfort'), hero);
+  assert.equal(query(card, 'dialog [aria-label="Back"]'), null);
+  query(card, 'dialog [aria-label="Close Settings"]').click(); await settle(card);
+  assert.equal(query(card, 'dialog'), null);
+  assert.equal(root(card).activeElement, opener);
+  await nav(card, 'details');
+  query(card, 'dialog').dispatchEvent(new Event('cancel', { cancelable: true }));
+  await settle(card);
+  assert.equal(query(card, 'dialog'), null);
+  assert.equal(query(card, '.comfort'), hero);
+  assert.deepEqual(calls, []);
+});
+
+test('hot-water history is a child route with one dialog and Back preserves its parent', async () => {
+  window.loadCardHelpers = async () => ({ createCardElement: () => document.createElement('div') });
+  const { card, calls } = await fixture();
+  await page(card, 'water');
+  const dialog = query(card, 'dialog');
+  [...dialog.querySelectorAll('button')].find(b => b.textContent.includes('View history')).click();
+  await settle(card);
+  assert.equal(query(card, 'dialog'), dialog);
+  assert.equal(dialog.getAttribute('aria-label'), 'History');
+  query(card, 'dialog [aria-label="Back"]').click(); await settle(card);
+  assert.equal(dialog.getAttribute('aria-label'), 'Hot water');
+  assert.equal(query(card, 'dialog [aria-label="Back"]'), null);
+  query(card, 'dialog [aria-label="Close Hot water"]').click(); await settle(card);
+  assert.equal(query(card, 'dialog'), null);
+  assert.deepEqual(calls, []);
+});
+
+test('native sensor handoff closes the shared top layer before emitting HA more-info', async () => {
+  const { card } = await fixture();
+  await nav(card, 'details');
+  let opened;
+  card.addEventListener('hass-more-info', event => {
+    assert.equal(query(card, 'dialog').open, false);
+    opened = event.detail.entityId;
+  });
+  query(card, 'dialog button.data-row').click(); await settle(card);
+  assert.ok(opened?.startsWith('sensor.'));
+  assert.equal(query(card, 'dialog'), null);
 });

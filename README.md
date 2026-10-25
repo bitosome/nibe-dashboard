@@ -49,7 +49,7 @@ The bundle is committed in `dist/` and attached to tagged releases, following th
 
 1. Download `nibe-dashboard.js` from a release, or use `dist/nibe-dashboard.js` from the repository.
 2. Put it in `/config/www/nibe-dashboard.js`.
-3. Add `/local/nibe-dashboard.js?v=0.2.3` as a dashboard resource of type **JavaScript module**.
+3. Add `/local/nibe-dashboard.js?v=0.3.0` as a dashboard resource of type **JavaScript module**.
 4. Reload the frontend and add the card. After an upgrade, update the cache-busting version if needed.
 
 Installation does not create helpers or automations, enable NIBE entities, or replace any existing dashboard.
@@ -171,4 +171,4 @@ Rebuild and commit `dist/nibe-dashboard.js` with each source change. CI checks t
 
 ## Attribution
 
-MIT. Shared design tokens come from Space Hub Card; see [provenance](src/shared/PROVENANCE.md) and [LICENSE](LICENSE). Not an official NIBE product and not a substitute for the pump's safety controls, installer guidance or validated hygiene procedures.
+MIT. Shared UI components are bundled from `@bitosome/ha-card-ui`, based on Space Hub Card; see [provenance](src/shared/PROVENANCE.md) and [LICENSE](LICENSE). Not an official NIBE product and not a substitute for the pump's safety controls, installer guidance or validated hygiene procedures.

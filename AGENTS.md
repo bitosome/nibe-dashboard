@@ -14,7 +14,7 @@ This project owns a standalone Home Assistant Lovelace card, not heat-pump contr
 
 ## Design
 
-Space Hub Card is the canonical family design. Use its vendored tokens, rounded surfaces, HA typography/theme variables and isolated under-tile glows. Preserve `src/shared/PROVENANCE.md`; synchronize shared code rather than forking the design language. Keep technical details behind progressive disclosure. No custom chart dependencies.
+Space Hub Card is the canonical family design. Use `@bitosome/ha-card-ui` build-time tokens and components, rounded surfaces, HA typography/theme variables and isolated under-tile glows. Preserve `src/shared/PROVENANCE.md`; update the pinned package rather than forking the design language. Keep technical details behind progressive disclosure. No custom chart dependencies.
 
 ## Structure and checks
 

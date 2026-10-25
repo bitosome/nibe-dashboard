@@ -1,8 +1,16 @@
 import { LitElement, html, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { designTokens } from "./shared/design-tokens";
-import { UI_ICONS } from "./shared/card-primitives";
-import { buildGlow } from "./shared/glow";
+import {
+  designTokens,
+  UI_ICONS,
+  buildGlow,
+  tileGlow,
+  actionPill,
+  stateChip,
+  notice,
+  FamilyFlowController,
+  renderFamilyDialog,
+} from "@bitosome/ha-card-ui";
 import { cardStyles } from "./styles";
 import {
   available,
@@ -23,7 +31,9 @@ import {
 } from "./model";
 import type { CardConfig, Entity, Hass, HistoryCard, Room } from "./types";
 
-type Page = "home" | "rooms" | "history" | "details" | "water" | "settings";
+type MainPage = "home" | "rooms";
+type DialogPage = "history" | "details" | "water" | "settings";
+type Page = MainPage | DialogPage;
 interface Pending {
   id: string;
   expected: number | string;
@@ -37,7 +47,8 @@ export class NibeDashboard extends LitElement {
   static styles = [designTokens, cardStyles];
   @property({ attribute: false }) hass?: Hass;
   @state() private config?: CardConfig;
-  @state() private page: Page = "home";
+  @state() private page: MainPage = "home";
+  private flow = new FamilyFlowController<DialogPage>(this);
   @state() private feedback = "";
   @state() private failed = false;
   @state() private pending?: Pending;
@@ -48,6 +59,7 @@ export class NibeDashboard extends LitElement {
 
   setConfig(config: CardConfig) {
     this.config = validateConfig(config);
+    this.flow.forceClose(false);
     this.cancelPending();
     this.generation++;
     this.histories = [];
@@ -80,7 +92,7 @@ export class NibeDashboard extends LitElement {
       for (const card of this.histories) card.hass = this.hass;
     }
     if (
-      this.page === "history" &&
+      this.flow.current === "history" &&
       !this.histories.length &&
       !this.historyLoading &&
       !this.historyError
@@ -199,16 +211,60 @@ export class NibeDashboard extends LitElement {
       !this.hass?.states[id]
     )
       return;
-    this.dispatchEvent(
-      new CustomEvent("hass-more-info", {
-        detail: { entityId: id },
-        bubbles: true,
-        composed: true,
-      }),
+    this.flow.handoff(() =>
+      this.dispatchEvent(
+        new CustomEvent("hass-more-info", {
+          detail: { entityId: id },
+          bubbles: true,
+          composed: true,
+        }),
+      ),
     );
   }
   private show(page: Page) {
-    this.page = page;
+    if (page === "home" || page === "rooms") {
+      this.flow.close();
+      this.page = page;
+    } else if (this.flow.active) {
+      this.flow.push(page);
+    } else {
+      this.flow.open(page);
+    }
+  }
+  private feedbackMessage() {
+    return this.feedback
+      ? notice({
+          message: this.feedback,
+          tone: this.failed ? "error" : "neutral",
+        })
+      : nothing;
+  }
+  private dialog() {
+    const page = this.flow.current;
+    if (!page) return nothing;
+    const titles: Record<DialogPage, string> = {
+      settings: "Settings",
+      details: "Details",
+      history: "History",
+      water: "Hot water",
+    };
+    const content =
+      page === "settings"
+        ? this.settingsPage()
+        : page === "details"
+          ? this.detailsPage()
+          : page === "water"
+            ? this.waterPage()
+            : this.historyPage();
+    return renderFamilyDialog(this.flow, {
+      title: titles[page],
+      content: html`<div class="modal-content">
+        ${this.notices()}${content}
+      </div>`,
+      footer: this.feedback ? this.feedbackMessage() : undefined,
+      wide: page === "history",
+      long: page === "history" || page === "details",
+    });
   }
   private stepper(role: Exclude<ControlRole, "autopilot">) {
     const entity = this.entity(role);
@@ -368,11 +424,11 @@ export class NibeDashboard extends LitElement {
       status.tone === "heat",
     );
     return html`<div class="tile-wrap">
-        <div class="glow-under" style=${glow.style}>${glow.overlay}</div>
+        ${tileGlow(glow)}
         <section class="surface family-surface comfort">
           <div class="comfort-top">
             <span class="eyebrow">Inside</span>${this.config?.read_only
-              ? html`<span class="chip">Read only</span>`
+              ? stateChip({ label: "Read only" })
               : nothing}
           </div>
           <div class="reading">
@@ -509,9 +565,11 @@ export class NibeDashboard extends LitElement {
   private waterPage() {
     return html`<div class="section-title">
         <h2>Hot water</h2>
-        <button class="text-button" @click=${() => this.show("history")}>
-          View history
-        </button>
+        ${actionPill({
+          label: "View history",
+          icon: UI_ICONS.history,
+          onClick: () => this.show("history"),
+        })}
       </div>
       ${this.group("Cylinder", ["hot_water", "tank_top"])}
       ${this.group("Periodic boost", [
@@ -702,7 +760,7 @@ export class NibeDashboard extends LitElement {
   private historyPage() {
     return html`<div class="section-title">
         <h2>Recent history</h2>
-        <span class="chip">${this.config?.history_hours ?? 24} hours</span>
+        ${stateChip({ label: `${this.config?.history_hours ?? 24} hours` })}
       </div>
       <p class="hint">
         Recorded by Home Assistant. Gaps mean missing data, not zero. Tap a
@@ -733,81 +791,69 @@ export class NibeDashboard extends LitElement {
       ["details", "Details", UI_ICONS.details],
     ];
     return html`<ha-card
-      ><div class="outer">
-        <div class="root">
-          <header class="top family-header">
-            <span class="brand family-brand"
-              ><ha-icon
-                aria-hidden="true"
-                icon="mdi:heat-pump-outline"
-              ></ha-icon
-            ></span>
-            <div class="identity family-identity">
-              <h1 class="family-title">${this.config.title ?? "Heat pump"}</h1>
-              <div class="subtitle family-subtitle">
-                ${this.config.subtitle ?? "NIBE / room-aware comfort"}
+        ><div class="outer">
+          <div class="root">
+            <header class="top family-header">
+              <span class="brand family-brand"
+                ><ha-icon
+                  aria-hidden="true"
+                  icon="mdi:heat-pump-outline"
+                ></ha-icon
+              ></span>
+              <div class="identity family-identity">
+                <h1 class="family-title">
+                  ${this.config.title ?? "Heat pump"}
+                </h1>
+                <div class="subtitle family-subtitle">
+                  ${this.config.subtitle ?? "NIBE / room-aware comfort"}
+                </div>
               </div>
-            </div>
-            <button
-              class="icon-button family-icon-button"
-              data-page="settings"
-              aria-label="Comfort settings"
-              aria-pressed=${this.page === "settings"}
-              @click=${() =>
-                this.show(this.page === "settings" ? "home" : "settings")}
-            >
-              <ha-icon aria-hidden="true" icon=${UI_ICONS.settings}></ha-icon>
-            </button>
-          </header>
-          <div class="status-line ${status.tone}">
-            <span class="dot"></span><span>${status.label}</span>${this.roleId(
-              "outdoor",
-            )
-              ? html`<span class="outside"
-                  >Outside ${this.value("outdoor")}</span
-                >`
-              : nothing}
-          </div>
-          ${this.notices()}
-          <main class="panel" aria-label=${`${this.page} panel`}>
-            ${this.page === "home"
-              ? this.home()
-              : this.page === "rooms"
-                ? this.roomsPage()
-                : this.page === "water"
-                  ? this.waterPage()
-                  : this.page === "settings"
-                    ? this.settingsPage()
-                    : this.page === "details"
-                      ? this.detailsPage()
-                      : this.historyPage()}
-          </main>
-          ${this.feedback
-            ? html`<p
-                class="feedback ${this.failed ? "error" : ""}"
-                role=${this.failed ? "alert" : "status"}
+              <button
+                class="icon-button family-icon-button"
+                data-page="settings"
+                aria-label="Settings"
+                aria-haspopup="dialog"
+                aria-expanded=${this.flow.stack.includes("settings")}
+                @click=${() => this.show("settings")}
               >
-                ${this.feedback}
-              </p>`
-            : nothing}
-          <nav class="family-navigation" aria-label="Heat pump sections">
-            ${pages.map(
-              ([page, label, icon]) =>
-                html`<button
-                  data-nav=${page}
-                  aria-current=${this.page === page ||
-                  (page === "home" && this.page === "water")
-                    ? "page"
-                    : "false"}
-                  @click=${() => this.show(page)}
-                >
-                  <ha-icon aria-hidden="true" icon=${icon}></ha-icon>${label}
-                </button>`,
-            )}
-          </nav>
-        </div>
-      </div></ha-card
-    >`;
+                <ha-icon aria-hidden="true" icon=${UI_ICONS.settings}></ha-icon>
+              </button>
+            </header>
+            <div class="status-line ${status.tone}">
+              <span class="dot"></span
+              ><span>${status.label}</span>${this.roleId("outdoor")
+                ? html`<span class="outside"
+                    >Outside ${this.value("outdoor")}</span
+                  >`
+                : nothing}
+            </div>
+            ${this.notices()}
+            <main class="panel" aria-label=${`${this.page} panel`}>
+              ${this.page === "home" ? this.home() : this.roomsPage()}
+            </main>
+            ${!this.flow.active ? this.feedbackMessage() : nothing}
+            <nav class="family-navigation" aria-label="Heat pump sections">
+              ${pages.map(
+                ([page, label, icon]) =>
+                  html`<button
+                    data-nav=${page}
+                    aria-current=${this.page === page ? "page" : "false"}
+                    aria-haspopup=${page === "history" || page === "details"
+                      ? "dialog"
+                      : nothing}
+                    aria-expanded=${page === "history" || page === "details"
+                      ? this.flow.stack.includes(page)
+                      : nothing}
+                    @click=${() => this.show(page)}
+                  >
+                    <ha-icon aria-hidden="true" icon=${icon}></ha-icon>${label}
+                  </button>`,
+              )}
+            </nav>
+          </div>
+        </div></ha-card
+      >
+      ${this.dialog()}`;
   }
 }
 

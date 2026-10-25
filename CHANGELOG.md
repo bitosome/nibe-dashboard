@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Bundle the pinned `@bitosome/ha-card-ui` library instead of maintaining copied UI implementations.
+- Open Settings, Details and History in a shared native modal with consistent Back/X, safe-area sizing, route focus and scroll restoration.
+- Keep live comfort readings and room controls on the dashboard. Hot-water history is a child page; native sensor details close the custom top layer before opening Home Assistant.
+- Preserve controller ownership, command confirmation, alarms and native history behavior.
+
 ## 0.2.3
 
 - Share the versioned Space Hub header, metric, surface and navigation primitives with the card family; keep theme overrides and under-tile glow layering.

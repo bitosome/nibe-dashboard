@@ -356,6 +356,7 @@ test('shared modal keeps the overview intact and X/Escape return to its opener',
   assert.equal(query(card, 'dialog'), null);
   assert.equal(root(card).activeElement, opener);
   await nav(card, 'details');
+  assert.equal(query(card, 'dialog').classList.contains('long'), false);
   query(card, 'dialog').dispatchEvent(new Event('cancel', { cancelable: true }));
   await settle(card);
   assert.equal(query(card, 'dialog'), null);
@@ -372,6 +373,7 @@ test('hot-water history is a child route with one dialog and Back preserves its 
   await settle(card);
   assert.equal(query(card, 'dialog'), dialog);
   assert.equal(dialog.getAttribute('aria-label'), 'History');
+  assert.equal(dialog.classList.contains('long'), true);
   query(card, 'dialog [aria-label="Back"]').click(); await settle(card);
   assert.equal(dialog.getAttribute('aria-label'), 'Hot water');
   assert.equal(query(card, 'dialog [aria-label="Back"]'), null);

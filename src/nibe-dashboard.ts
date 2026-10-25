@@ -263,7 +263,7 @@ export class NibeDashboard extends LitElement {
       </div>`,
       footer: this.feedback ? this.feedbackMessage() : undefined,
       wide: page === "history",
-      long: page === "history" || page === "details",
+      long: page === "history",
     });
   }
   private stepper(role: Exclude<ControlRole, "autopilot">) {

@@ -1125,7 +1125,7 @@ const dt=t=>(e,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(t,e)}
     <span>${t.message}</span>${t.action?qt(t.action):F}
   </div>`):F;var t}dialog(){const t=this.flow.current;if(!t)return F;const e="settings"===t?this.settingsPage():"details"===t?this.detailsPage():"water"===t?this.waterPage():this.historyPage();return It(this.flow,{title:{settings:"Settings",details:"Details",history:"History",water:"Hot water"}[t],content:W`<div class="modal-content">
         ${this.notices()}${e}
-      </div>`,footer:this.feedback?this.feedbackMessage():void 0,wide:"history"===t,long:"history"===t||"details"===t})}stepper(t){const e=this.entity(t),i=this.canWrite(this.roleId(t))&&!!this.config&&!!Xt(this.config,t,this.hass);return W`<div class="stepper" aria-label=${Lt[t][0]}>
+      </div>`,footer:this.feedback?this.feedbackMessage():void 0,wide:"history"===t,long:"history"===t})}stepper(t){const e=this.entity(t),i=this.canWrite(this.roleId(t))&&!!this.config&&!!Xt(this.config,t,this.hass);return W`<div class="stepper" aria-label=${Lt[t][0]}>
       <button
         data-adjust=${`${t}-down`}
         aria-label=${`Decrease ${Lt[t][0]}`}

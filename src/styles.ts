@@ -309,6 +309,8 @@ export const cardStyles = [
       gap: var(--large-gap);
     }
     .notice {
+      position: relative;
+      z-index: 1;
       border-radius: var(--tile-border-radius);
       padding: 12px 14px;
       font-size: 12px;

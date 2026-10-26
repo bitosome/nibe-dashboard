@@ -694,6 +694,8 @@ const dt=t=>(e,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(t,e)}
     outline-offset: 3px;
   }
   .family-notice {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1028,6 +1030,8 @@ const dt=t=>(e,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(t,e)}
       gap: var(--large-gap);
     }
     .notice {
+      position: relative;
+      z-index: 1;
       border-radius: var(--tile-border-radius);
       padding: 12px 14px;
       font-size: 12px;

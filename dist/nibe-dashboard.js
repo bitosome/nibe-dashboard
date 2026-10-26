@@ -760,7 +760,8 @@ const dt=t=>(e,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(t,e)}
       background: var(--nibe-surface);
       border: 1px solid var(--divider-color, #0001);
       border-radius: var(--ha-card-border-radius, 24px);
-      overflow: visible;
+      /* Contain decoration at the card boundary; tile gutters stay unclipped. */
+      overflow: clip;
     }
     .outer {
       container-type: inline-size;

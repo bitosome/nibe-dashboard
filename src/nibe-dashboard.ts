@@ -221,14 +221,14 @@ export class NibeDashboard extends LitElement {
       ),
     );
   }
-  private show(page: Page) {
+  private show(page: Page, opener?: HTMLElement) {
     if (page === "home" || page === "rooms") {
       this.flow.close();
       this.page = page;
     } else if (this.flow.active) {
       this.flow.push(page);
     } else {
-      this.flow.open(page);
+      this.flow.open(page, opener);
     }
   }
   private feedbackMessage() {
@@ -279,7 +279,7 @@ export class NibeDashboard extends LitElement {
         ?disabled=${!writable || nextNumber(entity, -1) === undefined}
         @click=${() => this.adjust(role, -1)}
       >
-        &minus;
+        <ha-icon aria-hidden="true" icon=${UI_ICONS.remove}></ha-icon>
       </button>
       <output
         >${available(entity) && numeric(entity.state) !== undefined
@@ -292,7 +292,7 @@ export class NibeDashboard extends LitElement {
         ?disabled=${!writable || nextNumber(entity, 1) === undefined}
         @click=${() => this.adjust(role, 1)}
       >
-        +
+        <ha-icon aria-hidden="true" icon=${UI_ICONS.add}></ha-icon>
       </button>
     </div>`;
   }
@@ -389,14 +389,16 @@ export class NibeDashboard extends LitElement {
       class="surface metric family-surface family-metric"
       data-page=${page}
       aria-label=${`${label}: ${this.value(role, digits)}. Open details`}
-      @click=${() => this.show(page)}
+      aria-haspopup="dialog"
+      @click=${(event: MouseEvent) =>
+        this.show(page, event.currentTarget as HTMLElement)}
     >
       <span class="metric-top family-metric-top"
         ><ha-icon aria-hidden="true" icon=${icon}></ha-icon
         ><ha-icon
           aria-hidden="true"
           class="arrow family-metric-trailing"
-          icon="mdi:chevron-right"
+          icon=${UI_ICONS.next}
         ></ha-icon
         ><span class="metric-label family-metric-label">${label}</span></span
       >
@@ -509,7 +511,10 @@ export class NibeDashboard extends LitElement {
             ?disabled=${!enabled || nextNumber(entity, -1, true) === undefined}
             @click=${() => this.adjustRoom(room, -1)}
           >
-            &minus;</button
+            <ha-icon
+              aria-hidden="true"
+              icon=${UI_ICONS.remove}
+            ></ha-icon></button
           ><output aria-label=${`${name} target`}
             >${target === undefined ? "--" : target}</output
           ><button
@@ -518,7 +523,7 @@ export class NibeDashboard extends LitElement {
             ?disabled=${!enabled || nextNumber(entity, 1, true) === undefined}
             @click=${() => this.adjustRoom(room, 1)}
           >
-            +
+            <ha-icon aria-hidden="true" icon=${UI_ICONS.add}></ha-icon>
           </button>
         </div>
       </div>
@@ -665,34 +670,41 @@ export class NibeDashboard extends LitElement {
       </details>`;
   }
   private settingsPage() {
-    return html`<div class="section-title"><h2>Comfort settings</h2></div>
-      <section class="surface family-surface group settings">
-        ${this.roleId("heater_cap")
-          ? html`<div class="setting-row">
-              <div class="setting-copy">
-                <strong>Heater allowance</strong
-                ><small
-                  >User cap, in
-                  ${String(
-                    this.entity("heater_cap")?.attributes.unit_of_measurement ??
-                      "kW",
-                  )}.
-                  Electrical limits still apply.</small
-                >
-              </div>
-              ${this.stepper("heater_cap")}
-            </div>`
-          : nothing}
-        ${this.roleId("bias")
-          ? html`<div class="setting-row">
-              <div class="setting-copy">
-                <strong>Heating trim</strong
-                ><small>Manual bias for the room-aware controller.</small>
-              </div>
-              ${this.stepper("bias")}
-            </div>`
-          : nothing}
-      </section>
+    const configured = !!this.roleId("heater_cap") || !!this.roleId("bias");
+    return html`${configured
+        ? html`<section
+            class="surface family-surface group settings"
+            aria-label="Comfort settings"
+          >
+            ${this.roleId("heater_cap")
+              ? html`<div class="setting-row">
+                  <div class="setting-copy">
+                    <strong>Heater allowance</strong
+                    ><small
+                      >User cap, in
+                      ${String(
+                        this.entity("heater_cap")?.attributes
+                          .unit_of_measurement ?? "kW",
+                      )}.
+                      Electrical limits still apply.</small
+                    >
+                  </div>
+                  ${this.stepper("heater_cap")}
+                </div>`
+              : nothing}
+            ${this.roleId("bias")
+              ? html`<div class="setting-row">
+                  <div class="setting-copy">
+                    <strong>Heating trim</strong
+                    ><small>Manual bias for the room-aware controller.</small>
+                  </div>
+                  ${this.stepper("bias")}
+                </div>`
+              : nothing}
+          </section>`
+        : notice({
+            message: "Comfort controls are not configured for this card.",
+          })}
       <p class="hint">
         The house target is an autopilot reference, not a command to set every
         room to the same temperature. Room targets are separate.
@@ -812,9 +824,10 @@ export class NibeDashboard extends LitElement {
                 class="icon-button family-icon-button"
                 data-page="settings"
                 aria-label="Settings"
+                title="Settings"
                 aria-haspopup="dialog"
-                aria-expanded=${this.flow.stack.includes("settings")}
-                @click=${() => this.show("settings")}
+                @click=${(event: MouseEvent) =>
+                  this.show("settings", event.currentTarget as HTMLElement)}
               >
                 <ha-icon aria-hidden="true" icon=${UI_ICONS.settings}></ha-icon>
               </button>
@@ -841,10 +854,8 @@ export class NibeDashboard extends LitElement {
                     aria-haspopup=${page === "history" || page === "details"
                       ? "dialog"
                       : nothing}
-                    aria-expanded=${page === "history" || page === "details"
-                      ? this.flow.stack.includes(page)
-                      : nothing}
-                    @click=${() => this.show(page)}
+                    @click=${(event: MouseEvent) =>
+                      this.show(page, event.currentTarget as HTMLElement)}
                   >
                     <ha-icon aria-hidden="true" icon=${icon}></ha-icon>${label}
                   </button>`,

@@ -394,3 +394,27 @@ test('native sensor handoff closes the shared top layer before emitting HA more-
   assert.ok(opened?.startsWith('sensor.'));
   assert.equal(query(card, 'dialog'), null);
 });
+
+test('one canonical settings launcher and modal-aware metrics send no navigation commands', async () => {
+  const {card,calls}=await fixture();
+  assert.equal(root(card).querySelectorAll('[aria-label="Settings"]').length,1);
+  assert.equal(query(card,'[aria-label="Settings"] ha-icon').getAttribute('icon'),'mdi:cog-outline');
+  const metric=query(card,'button.metric[data-page="water"]');
+  assert.equal(metric.getAttribute('aria-haspopup'),'dialog');
+  assert.equal(metric.hasAttribute('aria-expanded'),false);
+  metric.click();await settle(card);
+  assert.equal(metric.hasAttribute('aria-expanded'),false);
+  assert.equal(query(card,'dialog').getAttribute('aria-label'),'Hot water');
+  query(card,'dialog [title="Close"]').click();await settle(card);
+  assert.equal(root(card).activeElement,metric);
+  assert.equal(metric.hasAttribute('aria-expanded'),false);
+  assert.deepEqual(calls,[]);
+});
+test('unmapped controller settings explain the empty state without an empty control tile',async()=>{
+  const{card,calls}=await fixture({config:integrationConfig,states:{...integrationStates(),'sensor.controller_status':state('unavailable')}});
+  await page(card,'settings');
+  assert.equal(query(card,'dialog .settings'),null);
+  assert.match(query(card,'dialog').textContent,/Comfort controls are not configured/);
+  assert.equal(query(card,'dialog [title="Close"]').disabled,false);
+  assert.deepEqual(calls,[]);
+});

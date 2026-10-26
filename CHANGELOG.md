@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- Keep one canonical Settings cog and correct modal-launcher semantics; restore focus to the exact clicked opener after closing Settings, History or details.
+- Use shared MDI plus/minus controls and show a clear empty state when comfort controls are not configured.
+- Preserve all controller ownership, readback and native-history behavior; cover navigation and mobile touch focus with regressions.
+
 ## 0.3.1
 
 - Let Details size to its content while retaining a bounded scrollable body. Keep dedicated height for charts and curve editing.

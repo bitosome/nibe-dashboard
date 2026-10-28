@@ -418,3 +418,27 @@ test('unmapped controller settings explain the empty state without an empty cont
   assert.equal(query(card,'dialog [title="Close"]').disabled,false);
   assert.deepEqual(calls,[]);
 });
+
+
+test('Rooms opens a shared modal without replacing the overview or its controls', async () => {
+  const {card,calls}=await fixture();
+  const main=query(card,'main');
+  const content=main.innerHTML;
+  const opener=query(card,'[data-nav="rooms"]');
+  assert.equal(opener.getAttribute('aria-haspopup'),'dialog');
+  opener.click();await settle(card);
+  const dialog=query(card,'dialog');
+  assert.equal(dialog.getAttribute('aria-label'),'Rooms');
+  assert.ok(dialog.querySelector('[data-room]'));
+  assert.equal(query(card,'main'),main);
+  assert.equal(main.innerHTML,content);
+  assert.equal(main.querySelector('[data-room]'),null);
+  query(card,'dialog [title="Close"]').click();await settle(card);
+  assert.equal(query(card,'dialog'),null);
+  assert.equal(root(card).activeElement,opener);
+  opener.click();await settle(card);
+  query(card,'dialog').dispatchEvent(new Event('cancel',{cancelable:true}));await settle(card);
+  assert.equal(query(card,'dialog'),null);
+  assert.equal(root(card).activeElement,opener);
+  assert.equal(calls.length,0);
+});

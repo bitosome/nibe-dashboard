@@ -31,8 +31,8 @@ import {
 } from "./model";
 import type { CardConfig, Entity, Hass, HistoryCard, Room } from "./types";
 
-type MainPage = "home" | "rooms";
-type DialogPage = "history" | "details" | "water" | "settings";
+type MainPage = "home";
+type DialogPage = "history" | "details" | "water" | "settings" | "rooms";
 type Page = MainPage | DialogPage;
 interface Pending {
   id: string;
@@ -222,7 +222,7 @@ export class NibeDashboard extends LitElement {
     );
   }
   private show(page: Page, opener?: HTMLElement) {
-    if (page === "home" || page === "rooms") {
+    if (page === "home") {
       this.flow.close();
       this.page = page;
     } else if (this.flow.active) {
@@ -243,19 +243,22 @@ export class NibeDashboard extends LitElement {
     const page = this.flow.current;
     if (!page) return nothing;
     const titles: Record<DialogPage, string> = {
+      rooms: "Rooms",
       settings: "Settings",
       details: "Details",
       history: "History",
       water: "Hot water",
     };
     const content =
-      page === "settings"
-        ? this.settingsPage()
-        : page === "details"
-          ? this.detailsPage()
-          : page === "water"
-            ? this.waterPage()
-            : this.historyPage();
+      page === "rooms"
+        ? this.roomsPage()
+        : page === "settings"
+          ? this.settingsPage()
+          : page === "details"
+            ? this.detailsPage()
+            : page === "water"
+              ? this.waterPage()
+              : this.historyPage();
     return renderFamilyDialog(this.flow, {
       title: titles[page],
       content: html`<div class="modal-content">
@@ -842,7 +845,7 @@ export class NibeDashboard extends LitElement {
             </div>
             ${this.notices()}
             <main class="panel" aria-label=${`${this.page} panel`}>
-              ${this.page === "home" ? this.home() : this.roomsPage()}
+              ${this.home()}
             </main>
             ${!this.flow.active ? this.feedbackMessage() : nothing}
             <nav class="family-navigation" aria-label="Heat pump sections">
@@ -851,9 +854,7 @@ export class NibeDashboard extends LitElement {
                   html`<button
                     data-nav=${page}
                     aria-current=${this.page === page ? "page" : "false"}
-                    aria-haspopup=${page === "history" || page === "details"
-                      ? "dialog"
-                      : nothing}
+                    aria-haspopup=${page !== "home" ? "dialog" : nothing}
                     @click=${(event: MouseEvent) =>
                       this.show(page, event.currentTarget as HTMLElement)}
                   >

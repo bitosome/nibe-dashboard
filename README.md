@@ -22,7 +22,7 @@ Monitor, blocked and unavailable states are visible. Missing backend data never 
 ## What you get
 
 - **Home:** indoor temperature, comfort target, hot-water temperature, whole-circuit electrical input and autopilot master.
-- **Rooms:** each configured thermostat's current temperature, independent target and heat-request state.
+- **Rooms:** opens a shared modal with each configured thermostat's current temperature, independent target and heat-request state.
 - **Hot water:** cylinder readings, periodic-boost settings and electric-assistance readings. Open it from the hot-water tile.
 - **History:** on-demand, native Home Assistant graphs for temperatures, electrical input and compressor frequency.
 - **Details:** electrical input and controller limits, with heating/source and protection data behind expandable sections.
@@ -172,3 +172,5 @@ Rebuild and commit `dist/nibe-dashboard.js` with each source change. CI checks t
 ## Attribution
 
 MIT. Shared UI components are bundled from `@bitosome/ha-card-ui`, based on Space Hub Card; see [provenance](src/shared/PROVENANCE.md) and [LICENSE](LICENSE). Not an official NIBE product and not a substitute for the pump's safety controls, installer guidance or validated hygiene procedures.
+
+The overview remains on the main card. Rooms, History and Details in the bottom menu open shared modals, with X/Escape dismissal and focus returned to the launcher. Opening a section does not replace the main card or move neighboring dashboard cards.

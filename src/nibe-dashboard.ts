@@ -800,7 +800,6 @@ export class NibeDashboard extends LitElement {
     if (!this.config) return nothing;
     const status = priority(this.entity("priority"));
     const pages: [Page, string, string][] = [
-      ["home", "Overview", "mdi:home-outline"],
       ["rooms", "Rooms", "mdi:floor-plan"],
       ["history", "History", UI_ICONS.history],
       ["details", "Details", UI_ICONS.details],
@@ -848,13 +847,16 @@ export class NibeDashboard extends LitElement {
               ${this.home()}
             </main>
             ${!this.flow.active ? this.feedbackMessage() : nothing}
-            <nav class="family-navigation" aria-label="Heat pump sections">
+            <nav
+              class="family-navigation"
+              aria-label="Heat pump sections"
+              style=${`--family-nav-columns:${pages.length}`}
+            >
               ${pages.map(
                 ([page, label, icon]) =>
                   html`<button
                     data-nav=${page}
-                    aria-current=${this.page === page ? "page" : "false"}
-                    aria-haspopup=${page !== "home" ? "dialog" : nothing}
+                    aria-haspopup="dialog"
                     @click=${(event: MouseEvent) =>
                       this.show(page, event.currentTarget as HTMLElement)}
                   >

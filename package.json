@@ -1,6 +1,6 @@
 {
   "name": "nibe-dashboard",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "A calm, automation-aware NIBE heat-pump card for Home Assistant.",
   "type": "module",
   "license": "MIT",

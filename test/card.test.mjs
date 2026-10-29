@@ -203,7 +203,7 @@ test('connection.connected=false is also treated as offline', async () => {
 test('alarm 181 remains prominent on every page and no reset is sent', async () => {
   const { card, calls } = await fixture({ states: { 'sensor.alarm_45001': state(181) } });
   for (const value of ['home', 'rooms', 'details', 'history']) {
-    await nav(card, value);
+    if (value !== 'home') await nav(card, value);
     assert.match(query(card, '[role="alert"]').textContent, /Periodic hot-water boost failed/);
     assert.match(query(card, '[role="alert"]').textContent, /not been confirmed/);
   }
@@ -288,7 +288,7 @@ test('native history loads only on demand and propagates fresh hass', async () =
   assert.ok(configs.flatMap(c => c.entities).every(e => e.entity.startsWith('sensor.')));
   await change(card, { 'sensor.prio_43086': state('OFF') });
   assert.equal(query(card, 'history-test').hass, card.hass);
-  await nav(card, 'home'); await nav(card, 'history'); assert.equal(configs.length, 3);
+  query(card, 'dialog [title="Close"]').click(); await settle(card); await nav(card, 'history'); assert.equal(configs.length, 3);
 });
 test('history loader rejects gracefully and does not retry in a render loop', async () => {
   let attempts = 0;
@@ -334,11 +334,11 @@ test('editor keeps read-only mode and duplicate room selections consistent', asy
 
 test('shared navigation remains descriptive and never sends equipment commands', async () => {
   const {card,calls}=await fixture();
-  const overview=query(card,'[data-nav="home"]');
-  assert.equal(overview.textContent.trim(),'Overview');
+  assert.equal(query(card,'[data-nav="home"]'),null);
+  assert.equal(card.shadowRoot.querySelectorAll('[data-nav]').length,3);
   assert.equal(query(card,'[data-nav="history"] ha-icon').getAttribute('icon'),'mdi:history');
   assert.equal(query(card,'[data-nav="details"] ha-icon').getAttribute('icon'),'mdi:information-outline');
-  for(const page of ['rooms','history','details','home']) await nav(card,page);
+  for(const page of ['rooms','history','details']) await nav(card,page);
   assert.equal(calls.length,0);
 });
 
